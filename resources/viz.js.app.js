@@ -85,6 +85,12 @@ var result;
 var stream;
 var result1;
 var prefixes;
+var inferredOutput;
+var inferredStream;
+var infFacts;
+var infWindow;
+var explicit;
+var globalResult1 = "";
 
 //var graphStore =  new rdf.dataset();
 var graphStore = new rdfdi();
@@ -946,43 +952,65 @@ document.querySelector("#type input").addEventListener("change", function() {
 });
 updateGraph();
 
-function showFacts(){
-  var w = window.open('', '', 'width=1020,height=800,resizeable,scrollbars');
-  showFacts1(w)
-  w.document.close(); // needed for chrome and safari
+
+//***  see https://stackoverflow.com/questions/1372022/waiting-for-child-window-loading-to-complete   ***/
+function defer (callback) {
+  var channel = new MessageChannel();
+  channel.port1.onmessage = function (e) {
+      callback();
+  };
+  channel.port2.postMessage(null);
 }
 
 
-async function showFacts1(w){
+
+async function showFacts(){
     // Store to hold explicitly loaded triples
-    const explicit = new rdfdi();
+    //explicit = rdf.dataset();
     // Store to hold implicitly loaded triples
-    const implicit = new rdfdi();  
-
-    console.log(typeof explicit)
-    console.log(typeof implicit)
-
-
+    const implicit = rdf.dataset();  
     const { additions, deletions } = await hylarCore.incremental(hylarCore.quadsToFacts(graphStore.toArray()), [], [], [], hylarCore.owl2rl)
     
-    if(additions) {implicit.add(hylarCore.factsToQuads(additions).implicit);}
-    //if(deletions) {implicit.remove(hylarCore.factsToQuads(deletions).implicit);}
+    if(additions) {implicit.addAll(hylarCore.factsToQuads(additions).implicit);}
+    if(deletions) {implicit.remove(hylarCore.factsToQuads(deletions).implicit);}
   
-    if(additions) {explicit.add(hylarCore.factsToQuads(additions).explicit);}
+    //if(additions) {explicit.addAll(hylarCore.factsToQuads(additions).explicit);}
     //if(deletions) {explicit.remove(hylarCore.factsToQuads(deletions).explicit);}
 
-//var w = window.open('', '', 'width=1020,height=800,resizeable,scrollbars');
-w.document.write('<h3>Explicit Triples</h3>');
-w.document.write('<textarea cols="140" rows="20">');
-    explicit.toArray().forEach(x => x.forEach(y => logger(y, w)));
-    w.document.write('</textarea>');
-    w.document.write('<h3>Implicit Triples</h3>');
-    w.document.write('<textarea cols="140" rows="20">');    
-   implicit.toArray().forEach(x => x.forEach(y => logger(y, w)));
-   w.document.write('</textarea>');
+    var result1 = ''
+    const serializerNtriples = new SerializerNtriples()
+    const inputStream = implicit.toStream()
+    const outputStream = serializerNtriples.import(inputStream)
   
+    outputStream.on('data', ntriples => {
+      if (ntriples != "undefined") {
+        result1 += ntriples.toString()
+      }
+    });
+  
+   outputStream.on('end', () => {
+     if(result1 === ""){alert("There are no inferred triples")}
+     else
+     {alert("getting inferred triples")
+   infWindow = window.open('/index.html', 'Inferred-Facts', 'width=1020,height=1000,resizeable,scrollbars');
+   infWindow.addEventListener("unload", function (){
+    // note: Safari supports pagehide only
+    defer(function (){
+        if (infWindow.document.readyState === "loading")
+        infWindow.addEventListener("load", function (){
+          loadWindow(infWindow, result1);
+            });
+        else
+        loadWindow(infWindow, result1);
+    })
+});
+
+  }
+})
 }
 
-function logger(x, w){
-  w.document.write(x.subject.value, "  ", x.predicate.value, "  ",x.object.value, "\n")
+
+function loadWindow(infWindow, result1) {
+infWindow.editor.setValue(result1);
+infWindow.document.close();
 }
