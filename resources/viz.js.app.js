@@ -1000,6 +1000,10 @@ function printToScreen(myJSONString) {
 }
 
 
+function printToTextarea(myString){
+  document.getElementById('outputsparql').outerHTML = "<div id='outputsparql' class='split'><textarea cols=120 rows=10>" + myString + "</textarea></div>"
+}
+
 async function sparqlQuery(sparql) {
 var queryStore = new N3.Store();
 var myJSON = '' ;
@@ -1018,22 +1022,21 @@ if (sparql.toLowerCase().includes('select ')){
       data.on('error', () => alert('There was an error in outputting results of the select query.'));
 }
 else if (sparql.toLowerCase().includes('describe ') || sparql.toLowerCase().includes('construct ')) {
-  resultz.quadStream.on('data', (quad) => {
-    console.log(quad.subject.value);
-    console.log(quad.predicate.value);
-    console.log(quad.object.value);
-    console.log(quad.graph.value);
-});
+  const { data } = await myEngine.resultToString(resultz, 'text/turtle');
+  data.on('data', (d) => (myJSON += d));
+  data.on('end', () => printToTextarea(myJSON));
+  data.on('error', () => alert('There was an error in outputting results of the select query.'));
+
+
 }
 else if (sparql.toLowerCase().includes('ask ')) {
   const hasMatches = await resultz.booleanResult;
-  console.log(hasMatches);
+  alert(hasMatches);
 }
 else
 {
   alert("there was some error in the query") ; 
   return
 }
-alert('The results are printed in the console log');
 }
 }
