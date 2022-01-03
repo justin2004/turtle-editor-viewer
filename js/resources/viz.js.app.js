@@ -100,7 +100,6 @@ var myprefixes = {};
 //const element = document.querySelector('#subs');
 //const choices = new Choices(element);
 
-var beforeUnloadMessage = null;
 
 var patt = /&(?!(?:#[0-9]+|[a-z]+);)/gi // Useed for matching ampersands that are not already part of anXML entity
 
